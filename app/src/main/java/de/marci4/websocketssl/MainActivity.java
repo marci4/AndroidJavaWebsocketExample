@@ -1,35 +1,43 @@
-package de.marci4.websockettest;
+package de.marci4.websocketssl;
 
-import android.support.v7.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatActivity;
+
+import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
 
-
 import org.java_websocket.WebSocket;
-import org.java_websocket.WebSocketImpl;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ClientHandshake;
 import org.java_websocket.handshake.ServerHandshake;
 import org.java_websocket.server.DefaultSSLWebSocketServerFactory;
 import org.java_websocket.server.WebSocketServer;
 
+import java.io.IOException;
 import java.io.InputStream;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.UnknownHostException;
+import java.security.KeyManagementException;
 import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.UnrecoverableKeyException;
+import java.security.cert.CertificateException;
+
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManagerFactory;
-
 
 public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        WebSocketImpl.DEBUG = true;
         setContentView(R.layout.activity_main);
         try {
             startServer();
@@ -41,25 +49,8 @@ public class MainActivity extends AppCompatActivity {
 
     public void startServer() {
         ChatServer server = new ChatServer();
-        // load up the key store
-        String KEYPASSWORD = "PASSWORD";
         try {
-            KeyStore keystore = KeyStore.getInstance("BKS");
-            InputStream in = getResources().openRawResource(R.raw.keystore);
-            try {
-                keystore.load(in, KEYPASSWORD.toCharArray());
-            } finally {
-                in.close();
-            }
-            KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance("X509");
-            keyManagerFactory.init(keystore, KEYPASSWORD.toCharArray());
-            TrustManagerFactory tmf = TrustManagerFactory.getInstance("X509");
-            tmf.init(keystore);
-
-            SSLContext sslContext = null;
-            sslContext = SSLContext.getInstance("TLS");
-            sslContext.init(keyManagerFactory.getKeyManagers(), tmf.getTrustManagers(), null);
-
+            SSLContext sslContext = getSSLContext(getResources().openRawResource(R.raw.server));
             server.setWebSocketFactory(new DefaultSSLWebSocketServerFactory(sslContext));
         } catch (Exception e) {
             Log.e("ChatServer", e.getMessage());
@@ -68,35 +59,35 @@ public class MainActivity extends AppCompatActivity {
         server.start();
     }
 
-    public void connectToServer() throws URISyntaxException {
+    public void connectToServer() throws URISyntaxException, UnknownHostException {
         ChatClient client = new ChatClient();
-
-        String KEYPASSWORD = "PASSWORD";
         try {
-            KeyStore keystore = KeyStore.getInstance("BKS");
-            InputStream in = getResources().openRawResource(R.raw.keystore);
-            try {
-                keystore.load(in, KEYPASSWORD.toCharArray());
-            } finally {
-                in.close();
-            }
-            KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance("X509");
-            keyManagerFactory.init(keystore, KEYPASSWORD.toCharArray());
-            TrustManagerFactory tmf = TrustManagerFactory.getInstance("X509");
-            tmf.init(keystore);
-
-            SSLContext sslContext = null;
-            sslContext = SSLContext.getInstance("TLS");
-            sslContext.init(keyManagerFactory.getKeyManagers(), tmf.getTrustManagers(), null);
-            //sslContext.init(null, null, null);
-            SSLSocketFactory sslSocketFactory = sslContext.getSocketFactory();
-            client.setSocket(sslSocketFactory.createSocket());
+            SSLSocketFactory sslSocketFactory = getSSLContext(getResources().openRawResource(R.raw.client)).getSocketFactory();
+            client.setSocketFactory(sslSocketFactory);
         } catch (Exception e) {
             Log.e("ChatClient", e.getMessage());
             throw new AssertionError(e);
         }
         Log.i("ChatClient", "Trying to connect");
         client.connect();
+    }
+
+    private SSLContext getSSLContext(InputStream in) throws KeyStoreException, IOException, NoSuchAlgorithmException, KeyManagementException, CertificateException, UnrecoverableKeyException {
+        String KEYPASSWORD = "PASSWORD";
+        KeyStore keystore = KeyStore.getInstance("BKS");
+        try {
+            keystore.load(in, KEYPASSWORD.toCharArray());
+        } finally {
+            in.close();
+        }
+        KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance("X509");
+        keyManagerFactory.init(keystore, KEYPASSWORD.toCharArray());
+        TrustManagerFactory tmf = TrustManagerFactory.getInstance("X509");
+        tmf.init(keystore);
+
+        SSLContext sslContext = SSLContext.getInstance("TLS");
+        sslContext.init(keyManagerFactory.getKeyManagers(), tmf.getTrustManagers(), null);
+        return sslContext;
     }
 
     private class ChatServer extends WebSocketServer {
@@ -131,7 +122,7 @@ public class MainActivity extends AppCompatActivity {
 
             try {
                 connectToServer();
-            } catch (URISyntaxException e) {
+            } catch (URISyntaxException | UnknownHostException e) {
                 e.printStackTrace();
             }
 
@@ -140,7 +131,7 @@ public class MainActivity extends AppCompatActivity {
 
     private class ChatClient extends WebSocketClient {
         public ChatClient() throws URISyntaxException {
-            super(new URI("wss://127.0.0.1:8887"));
+            super(new URI("wss://localhost:8887"));
         }
 
         @Override

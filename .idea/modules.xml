@@ -2,8 +2,8 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/WebsocketTest.iml" filepath="$PROJECT_DIR$/WebsocketTest.iml" />
-      <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
+      <module fileurl="file://$PROJECT_DIR$/WebSocketSSL.iml" filepath="$PROJECT_DIR$/WebSocketSSL.iml" group="WebSocketSSL" />
+      <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" group="WebSocketSSL/app" />
     </modules>
   </component>
 </project>
